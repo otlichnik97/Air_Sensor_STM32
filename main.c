@@ -47,51 +47,43 @@ int main()
 
 void InitRCC(void) 
 {
-	RCC->CR |= (1<<RCC_CR_HSEON_Pos); // запускаем кварцевый резонатор
-	int StartUpCounter=0;
-	  for(StartUpCounter=0; ; StartUpCounter++)
-  {
-    if(RCC->CR & (1<<RCC_CR_HSERDY_Pos)) // ждем готовности резонатора
-      break;
-    if(StartUpCounter > 0x1000)
-    {
-      RCC->CR &= ~(1<<RCC_CR_HSEON_Pos); // если время вышло, останавливаем резонатор
-      return;
-    }
-  }
-	 RCC->CFGR |= (0x05<<RCC_CFGR_PLLMULL_Pos) //PLL множитель равен 9
-            | (0x01<<RCC_CFGR_PLLSRC_Pos); //Тактирование PLL от HSE
-  
-  RCC->CR |= (1<<RCC_CR_PLLON_Pos); //Запускаем PLL
+	uint32_t StartUpCounter=0;	
+	RCC->CR |= RCC_CR_HSEON; 																	// Start enternal oscillator
+	  for(StartUpCounter=0;;StartUpCounter++)
+		{
+			if (RCC->CR & RCC_CR_HSERDY) 													// Wait for HSE ready 
+				break;
+			if (StartUpCounter > 1000U)
+			{
+				RCC->CR &= ~RCC_CR_HSEON; 													// Stop HSE if it is not ready
+				return;
+			}
+		}
+	RCC->CFGR |= RCC_CFGR_PLLMULL9 | RCC_CFGR_PLLSRC; 				// PLL multipler is 9 and HSE is clock source
+  RCC->CR |= RCC_CR_PLLON; 																	// Start PLL
 
-  for(StartUpCounter=0; ; StartUpCounter++)
+  for(StartUpCounter=0;;StartUpCounter++)
   {
-    if(RCC->CR & (1<<RCC_CR_PLLRDY_Pos))
+    if (RCC->CR & RCC_CR_PLLRDY) 														// Wait for PLL ready 
       break;
     
-    if(StartUpCounter > 0x1000)
+    if (StartUpCounter > 1000U)
     {
-      RCC->CR &= ~(1<<RCC_CR_HSEON_Pos); //Останавливаем HSE
-      RCC->CR &= ~(1<<RCC_CR_PLLON_Pos); //Останавливаем PLL
+      RCC->CR &= ~(RCC_CR_HSEON | RCC_CR_PLLON); 						// Stop HSE and PLL if are not ready							
       return;
     }
   }
   
-  //Устанавливаем 2 цикла ожидания для Flash
-  //так как частота ядра у нас будет 48 MHz < SYSCLK <= 72 MHz
-  FLASH->ACR |= (0x02<<FLASH_ACR_LATENCY_Pos); 
+  FLASH->ACR |= FLASH_ACR_LATENCY_1; 												// Set 2 Flash cycles for SYSCLK = 72 MHz
   
-  RCC->CFGR |= (0x00<<RCC_CFGR_PPRE2_Pos) //Делитель шины APB2 отключен
-            | (0x04<<RCC_CFGR_PPRE1_Pos) //Делитель нишы APB1 равен 2
-            | (0x00<<RCC_CFGR_HPRE_Pos); //Делитель AHB отключен
+  RCC->CFGR &= ~(RCC_CFGR_PPRE2_Msk | RCC_CFGR_HPRE_Msk); 	// Disable APB2 div and AHB div
+  RCC->CFGR |= RCC_CFGR_PPRE1_DIV2; 												// Prescaler APB1 is 2
+           
+  RCC->CFGR |= RCC_CFGR_SW_PLL; 														//Select PLL as system clock 
   
-  RCC->CFGR |= (0x02<<RCC_CFGR_SW_Pos); //Переключаемся на работу от PLL
-  
-  while((RCC->CFGR & RCC_CFGR_SWS_Msk) != (0x02<<RCC_CFGR_SWS_Pos))  //Ждем, пока переключимся
-  {
-  }
-  
-  RCC->CR &= ~(1<<RCC_CR_HSION_Pos);
+  while((RCC->CFGR & RCC_CFGR_SWS_PLL) != RCC_CFGR_SWS_PLL) // Wait for switch to PLL
+		{}
+  RCC->CR &= ~RCC_CR_HSION;											
   
   return;
 }

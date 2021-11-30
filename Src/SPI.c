@@ -2,7 +2,7 @@
 #include "stm32f1xx.h"
 #include "SPI.h"
 
-// Function of initialization SPI1 for connect to BMP280
+
 
 void SPI1_Init(void)
 {
@@ -14,8 +14,6 @@ void SPI1_Init(void)
 	
 	SPI1->CR1 |= SPI_CR1_MSTR | SPI_CR1_SPE;			// Master mode, SPI enable.
 }
-
-// Function of initialization SPI2 for imitation protocol of WS2812b
 
 void SPI2_Init(void)
 {
